@@ -1,0 +1,232 @@
+#!/usr/bin/perl
+
+# usage:
+# webmize -i input.mpeg -o output.webm -h 360 -w [0|1]
+
+use strict;
+load_module("Getopt::Long");
+load_module("Data::Dumper");
+
+my $ffmpeg = "/usr/bin/ffmpeg";
+
+my %vbitrate    = (
+	low    => '1200k',
+	medium => '4200k',
+	high   => '8600k',
+);
+my %abitrate    = (
+	low    => '120k',
+	medium => '192k',
+	high   => '320k',
+);
+my %asamplerate = (
+	low    => '22050',
+	medium => '44100',
+	high   => '96000',
+);
+my %vpre		 = (
+	low    => 'libvpx-360p',
+	medium => 'libvpx-720p',
+	high   => 'libvpx-1080p',
+);
+
+my $infile      = "";
+my $outfile     = "";
+my $destHeight  = 360;
+my $destWidth   = 0;
+my $widescreen  = 0;
+
+# read the command line options
+GetOptions(
+	"input=s"=> \$infile,
+	"output=s"=> \$outfile,
+	"height=i"=> \$destHeight,
+	"widescreen=i"=> \$widescreen
+);
+
+if( $infile eq "" || $outfile eq "" ) {
+	usage();
+}
+
+my ($fWidth, $fHeight) = get_dimensions($infile);
+my $aspect = ( $fWidth / $fHeight );
+$destWidth = $fWidth;
+
+print "[info] $infile ---> $outfile\n";
+print "[info] video dimensions are ${fWidth}x${fHeight}, aspect ratio ${aspect}:1\n";
+
+# here come the calculations for video filters
+my @videofilters;
+
+my $crop = "";
+if( $widescreen == 1 ) {
+	print "[info] widescreen set, will crop video to 16:9 format, if not already so\n";
+ 
+	my $rw = ($fWidth / 16);
+	my $rh = ($fHeight /  9);
+	if( $rw != $rh ) {
+		print "---- video is not 16:9, calculating cropped size...\n";
+ 
+		my $nh = ($rw * 9);
+		my $ch = (($fHeight-$nh)/2);
+
+		print "---- new size is ${fWidth}x${nh}\n";
+ 
+		$crop = "crop=$fWidth:$nh:0:$ch";
+		push(@videofilters, $crop);
+	} else {
+		print "---- video is already 16:9\n";
+	}
+	
+	$aspect = ( 16 / 9 );
+}
+
+my $scale ="";
+if( $destHeight ne "" ) {
+	print "[info] custom height set, will scale video to fit specified value\n";
+	
+	my $newHeight = round_eight($destHeight);
+	my $newWidth  = round_eight($newHeight*$aspect);
+
+	print "---- new size is ${newWidth}x${newHeight}\n";
+
+	$scale = "scale=$newWidth:$newHeight";
+	push(@videofilters, $scale);
+
+	$destWidth = $newWidth;
+}
+
+my $filterString = "-vf \"".join(',', @videofilters) ."\"";
+
+# decide the quality options depending on output width
+my $vbitrateStr = my $abitrateStr = my $asamplerateStr = my $vpreStr = "";
+if( $destWidth > 950 ) {
+	$vbitrateStr    = $vbitrate{high};
+	$abitrateStr    = $abitrate{high};
+	$asamplerateStr = $asamplerate{high};
+	$vpreStr        = $vpre{high};
+	print "[info] choosing preset 'high'\n";
+}
+elsif( $destWidth > 590 ) {
+	$vbitrateStr    = $vbitrate{medium};
+	$abitrateStr    = $abitrate{medium};
+	$asamplerateStr = $asamplerate{medium};
+	$vpreStr        = $vpre{medium};
+	print "[info] choosing preset 'medium'\n";
+}
+else {
+	$vbitrateStr    = $vbitrate{low};
+	$abitrateStr    = $abitrate{low};
+	$asamplerateStr = $asamplerate{low};
+	$vpreStr        = $vpre{low};
+	print "[info] choosing preset 'low'\n";
+}
+
+print "[info] will encode video now.\n";
+print "---- 1st pass\n";
+
+system("$ffmpeg -i \"$infile\" $filterString -vpre $vpreStr -b $vbitrateStr -pass 1 -an -f webm -y \"$outfile\" > /dev/null 2>&1");
+ 
+print "---- 2nd pass\n";
+
+system("$ffmpeg -i \"$infile\" $filterString -vpre $vpreStr -b $vbitrateStr -pass 2 -acodec libvorbis -ab $abitrateStr -ar $asamplerateStr -ac 2 -f webm -y \"$outfile\" > /dev/null 2>&1");
+
+print "\n\ndone.\n";
+
+# load a CPAN module for further usage
+sub load_module {
+	# get the module name
+	my $name = shift;
+
+	eval "use $name";
+
+	if ($@) {
+		print "[error] you need the module $name from CPAN!\n";
+		exit 1;
+	}
+
+	return 1;
+}
+
+# print out usage information
+sub usage {
+	my $output = <<END;
+
+### My WebM video conversion script v0.1
+
+This script converts almost any type of video to the WebM container format
+(using VP8 as video codec and Vorbis as audio codec). It requires ffmpeg
+with the libvpx presets installed. The bitrates and presets to use are
+decided automatically depending upon the (calculated) width of the output
+video.
+
+Usage:
+    -i [filename]
+    -input [filename]
+        Source video file used as input for conversion
+        Must be a video format your currently installed version of ffmpeg
+        can handle.
+
+    -o [filename]
+    -output [filename]
+        Target filename for created output video file.
+        Attention: existing files will be overwritten without prompt!
+
+    -h [number]
+    -height [number]
+        The height of the output video in pixels. This number must be
+        divisible by 8 without remainder, otherwise it will be rounded to
+        the next number that can be divided by 8 cleanly.
+        If you don't want to scale the video, just specify the current
+        height of the video here
+
+    -w [0|1]
+    -widescreen [0|1]
+        If the parameter is 0 the video aspect ratio will not be modified,
+        (just the scaling to the given height will be done). If you specify
+        1 here, the video's dimensions will first be cropped to 16:9 and
+        after that the scaling to the given height will be applied).
+
+
+(c) 2011 Florian Staudacher
+END
+
+	print $output;
+	exit 0;
+}
+
+# round a number up to the next multiple of 8
+sub round_eight {
+	my $num = shift;
+	return ($num + 7) & ~7;
+}
+
+# get video dimensions
+sub get_dimensions {
+	my $filename = shift;
+
+	my $vidinfo_output = "";
+	#$width = $height = 0;
+	open(VIDINFO, "$ffmpeg -i \"$filename\" -vstats 2>&1 |");
+
+	while(<VIDINFO>) {
+		$vidinfo_output .= $_;
+	}
+
+	close VIDINFO;
+
+	$vidinfo_output =~ m/[0-9]?[0-9][0-9][0-9]x[0-9][0-9][0-9][0-9]?/g;
+
+	if( $& ne "" ) {
+		my @dimensions = split(/x/, $&);
+		#$width  = $dimensions[0];
+		#$height = $dimensions[1];
+		return @dimensions;
+	}
+	else {
+		print "[error] could not determine video dimensions\n";
+		exit 1;
+	}
+
+	return 0;
+}
