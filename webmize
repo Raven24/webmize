@@ -1,7 +1,26 @@
 #!/usr/bin/perl
 
-# usage:
-# webmize -i input.mpeg -o output.webm -h 360 -w [0|1]
+# webmize
+# (c) 2011 Florian Staudacher
+# http://github.com/Raven24/webmize
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#
+# example usage:
+# webmize -i input.mpeg -o output.webm -h 360 -w 0
 
 use strict;
 load_module("Getopt::Long");
@@ -152,7 +171,7 @@ sub load_module {
 sub usage {
 	my $output = <<END;
 
-### My WebM video conversion script v0.1
+### webmize - my WebM video conversion script v0.1
 
 This script converts almost any type of video to the WebM container format
 (using VP8 as video codec and Vorbis as audio codec). It requires ffmpeg
