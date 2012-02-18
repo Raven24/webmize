@@ -38,6 +38,21 @@ my %framerate   = (
 	medium => '22',
 	high   => '26',
 );
+my %gopsize     = (
+    low    => '60',
+    medium => '40',
+    high   => '20',
+);
+my %qmax        = (
+    low    => '46',
+    medium => '32',
+    high   => '26',
+);
+my %qmin        = (
+    low    => '40',
+    medium => '26',
+    high   => '20',
+);
 my %abitrate    = (
 	low    => '120k',
 	medium => '192k',
@@ -124,10 +139,13 @@ if( $destHeight  != 0 ) {
 my $filterString = "-vf \"".join(',', @videofilters) ."\"";
 
 # decide the quality options depending on output width
-my $framerateStr = my $vbitrateStr = my $abitrateStr = my $asamplerateStr = my $vpreStr = "";
+my $framerateStr = my $vbitrateStr = my $gopsizeStr = my $qminStr = my $qmaxStr = my $abitrateStr = my $asamplerateStr = my $vpreStr = "";
 if( $destHeight > 950 ) {
 	$framerateStr   = $framerate{high};
 	$vbitrateStr    = $vbitrate{high};
+	$gopsizeStr     = $gopsize{high};
+	$qminStr        = $qmin{high};
+	$qmaxStr        = $qmax{high};
 	$abitrateStr    = $abitrate{high};
 	$asamplerateStr = $asamplerate{high};
 	$vpreStr        = $vpre{high};
@@ -136,6 +154,9 @@ if( $destHeight > 950 ) {
 elsif( $destHeight > 590 ) {
 	$framerateStr   = $framerate{medium};
 	$vbitrateStr    = $vbitrate{medium};
+	$gopsizeStr     = $gopsize{medium};
+    $qminStr        = $qmin{medium};
+    $qmaxStr        = $qmax{medium};
 	$abitrateStr    = $abitrate{medium};
 	$asamplerateStr = $asamplerate{medium};
 	$vpreStr        = $vpre{medium};
@@ -144,6 +165,9 @@ elsif( $destHeight > 590 ) {
 else {
 	$framerateStr   = $framerate{low};
 	$vbitrateStr    = $vbitrate{low};
+	$gopsizeStr     = $gopsize{low};
+    $qminStr        = $qmin{low};
+    $qmaxStr        = $qmax{low};
 	$abitrateStr    = $abitrate{low};
 	$asamplerateStr = $asamplerate{low};
 	$vpreStr        = $vpre{low};
@@ -153,11 +177,11 @@ else {
 print "[info] will encode video now.\n";
 print "---- 1st pass\n";
 
-system("$ffmpeg -i \"$infile\" $filterString -vpre $vpreStr -b $vbitrateStr -r $framerateStr -pass 1 -an -f webm -y \"$outfile\" > /dev/null 2>&1");
+system("$ffmpeg -i \"$infile\" $filterString -vpre $vpreStr -b $vbitrateStr -r $framerateStr -g $gopsizeStr -qmin $qminStr -qmax $qmaxStr -pass 1 -an -f webm -y \"$outfile\" > /dev/null 2>&1");
  
 print "---- 2nd pass\n";
 
-system("$ffmpeg -i \"$infile\" $filterString -vpre $vpreStr -b $vbitrateStr -r $framerateStr -pass 2 -acodec libvorbis -ab $abitrateStr -ar $asamplerateStr -ac 2 -f webm -y \"$outfile\" > /dev/null 2>&1");
+system("$ffmpeg -i \"$infile\" $filterString -vpre $vpreStr -b $vbitrateStr -r $framerateStr -g $gopsizeStr -qmin $qminStr -qmax $qmaxStr -pass 2 -acodec libvorbis -ab $abitrateStr -ar $asamplerateStr -ac 2 -f webm -y \"$outfile\" > /dev/null 2>&1");
 
 print "\n\ndone.\n";
 
