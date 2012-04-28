@@ -104,14 +104,8 @@ if( $widescreen == 1 ) {
 	my $rw = ($fWidth / 16);
 	my $rh = ($fHeight /  9);
 	if( $rw != $rh ) {
-		print "---- video is not 16:9, calculating cropped size...\n";
- 
-		my $nh = ($rw * 9);
-		my $ch = (($fHeight-$nh)/2);
-
-		print "---- new size is ${fWidth}x${nh}\n";
- 
-		$crop = "crop=$fWidth:$nh:0:$ch";
+		logf("video is not 16:9, cropping...");
+		$crop = "crop=in_w:(in_w/16*9)";
 		push(@videofilters, $crop);
 	} else {
 		print "---- video is already 16:9\n";
