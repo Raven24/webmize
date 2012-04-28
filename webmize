@@ -91,15 +91,15 @@ my ($fWidth, $fHeight) = get_dimensions($infile);
 my $aspect = ( $fWidth / $fHeight );
 $destWidth = $fWidth;
 
-print "[info] $infile ---> $outfile\n";
-print "[info] video dimensions are ${fWidth}x${fHeight}, aspect ratio ${aspect}:1\n";
+log_info("$infile ---> $outfile");
+log_info("video dimensions are ${fWidth}x${fHeight}, aspect ratio ${aspect}:1");
 
 # here come the calculations for video filters
 my @videofilters;
 
 my $crop = "";
 if( $widescreen == 1 ) {
-	print "[info] widescreen set, will crop video to 16:9 format, if not already so\n";
+	log_info("widescreen set, will crop video to 16:9 format, if not already so");
  
 	my $rw = ($fWidth / 16);
 	my $rh = ($fHeight /  9);
@@ -108,20 +108,20 @@ if( $widescreen == 1 ) {
 		$crop = "crop=in_w:(in_w/16*9)";
 		push(@videofilters, $crop);
 	} else {
-		print "---- video is already 16:9\n";
+		logf("---- video is already 16:9");
 	}
 	
 	$aspect = ( 16 / 9 );
 }
 
 my $scale ="";
-if( $destHeight  != 0 ) {
-	print "[info] custom height set, will scale video to fit specified value\n";
+if( $destHeight && $destHeight != 0 ) {
+	log_info("custom height set, will scale video to fit specified value");
 	
 	my $newHeight = round_eight($destHeight);
 	my $newWidth  = round_eight($newHeight*$aspect);
 
-	print "---- new size is ${newWidth}x${newHeight}\n";
+	logf("new size is ${newWidth}x${newHeight}");
 
 	$scale = "scale=$newWidth:$newHeight";
 	push(@videofilters, $scale);
@@ -143,7 +143,7 @@ if( $destHeight > 950 ) {
 	$abitrateStr    = $abitrate{high};
 	$asamplerateStr = $asamplerate{high};
 	$vpreStr        = $vpre{high};
-	print "[info] choosing preset 'high'\n";
+	log_info("choosing preset 'high'");
 }
 elsif( $destHeight > 590 ) {
 	$framerateStr   = $framerate{medium};
@@ -154,7 +154,7 @@ elsif( $destHeight > 590 ) {
 	$abitrateStr    = $abitrate{medium};
 	$asamplerateStr = $asamplerate{medium};
 	$vpreStr        = $vpre{medium};
-	print "[info] choosing preset 'medium'\n";
+	log_info("choosing preset 'medium'");
 }
 else {
 	$framerateStr   = $framerate{low};
@@ -165,19 +165,19 @@ else {
 	$abitrateStr    = $abitrate{low};
 	$asamplerateStr = $asamplerate{low};
 	$vpreStr        = $vpre{low};
-	print "[info] choosing preset 'low'\n";
+	log_info("choosing preset 'low'");
 }
 
-print "[info] will encode video now.\n";
-print "---- 1st pass\n";
+log_info("will encode video now.");
+logf("1st pass");
 
 system("$ffmpeg -i \"$infile\" $filterString -vpre $vpreStr -b $vbitrateStr -r $framerateStr -g $gopsizeStr -qmin $qminStr -qmax $qmaxStr -pass 1 -an -f webm -y \"$outfile\" > /dev/null 2>&1");
  
-print "---- 2nd pass\n";
+logf("2nd pass");
 
 system("$ffmpeg -i \"$infile\" $filterString -vpre $vpreStr -b $vbitrateStr -r $framerateStr -g $gopsizeStr -qmin $qminStr -qmax $qmaxStr -pass 2 -acodec libvorbis -ab $abitrateStr -ar $asamplerateStr -ac 2 -f webm -y \"$outfile\" > /dev/null 2>&1");
 
-print "\n\ndone.\n";
+logf("done.");
 
 # load a CPAN module for further usage
 sub load_module {
@@ -187,8 +187,7 @@ sub load_module {
 	eval "use $name";
 
 	if ($@) {
-		print "[error] you need the module $name from CPAN!\n";
-		exit 1;
+		log_err("you need the module $name from CPAN!");
 	}
 
 	return 1;
@@ -270,9 +269,33 @@ sub get_dimensions {
 		return @dimensions;
 	}
 	else {
-		print "[error] could not determine video dimensions\n";
-		exit 1;
+		log_err("could not determine video dimensions");
 	}
 
 	return 0;
+}
+
+sub log_err {
+    logf(shift, "error");
+    exit 1;
+}
+
+sub log_info {
+    logf(shift, "info");
+}
+
+# logger
+sub logf {
+    my $msg = shift;
+    my $lvl = shift;
+    my $lvlLen = 7;
+    my $out = "";
+
+    if( !$lvl || $lvl eq "" ) {
+        $out .= "-" x ($lvlLen+2);
+    } else {
+        $out .= "[". sprintf('%*s', $lvlLen, $lvl) . "]";
+    }
+    $out .= "  " . $msg . "\n";
+    print $out;
 }
