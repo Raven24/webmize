@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 # webmize
-# (c) 2011 Florian Staudacher
+# (c) 2011-2012 Florian Staudacher
 # http://github.com/Raven24/webmize
 #
 #
@@ -23,10 +23,16 @@
 # webmize -i input.mpeg -o output.webm -h 360 -w 0
 
 use strict;
+use FindBin;
+use lib $FindBin::Bin;
+
+use common
+
 load_module("Getopt::Long");
+load_module("File::Which");
 load_module("Data::Dumper");
 
-my $ffmpeg = "/usr/bin/ffmpeg";
+my $ffmpeg      = which('ffmpeg');
 
 my %vbitrate    = (
 	low    => '1200k',
@@ -179,19 +185,6 @@ system("$ffmpeg -i \"$infile\" $filterString -vpre $vpreStr -b $vbitrateStr -r $
 
 logf("done.");
 
-# load a CPAN module for further usage
-sub load_module {
-	# get the module name
-	my $name = shift;
-
-	eval "use $name";
-
-	if ($@) {
-		log_err("you need the module $name from CPAN!");
-	}
-
-	return 1;
-}
 
 # print out usage information
 sub usage {
@@ -240,12 +233,6 @@ END
 	exit 0;
 }
 
-# round a number up to the next multiple of 8
-sub round_eight {
-	my $num = shift;
-	return ($num + 7) & ~7;
-}
-
 # get video dimensions
 sub get_dimensions {
 	my $filename = shift;
@@ -275,27 +262,4 @@ sub get_dimensions {
 	return 0;
 }
 
-sub log_err {
-    logf(shift, "error");
-    exit 1;
-}
 
-sub log_info {
-    logf(shift, "info");
-}
-
-# logger
-sub logf {
-    my $msg = shift;
-    my $lvl = shift;
-    my $lvlLen = 7;
-    my $out = "";
-
-    if( !$lvl || $lvl eq "" ) {
-        $out .= "-" x ($lvlLen+2);
-    } else {
-        $out .= "[". sprintf('%*s', $lvlLen, $lvl) . "]";
-    }
-    $out .= "  " . $msg . "\n";
-    print $out;
-}
