@@ -1,0 +1,112 @@
+#!/usr/bin/perl
+
+# youtube-to-ogg
+# (c) 2011-2012 Florian Staudacher
+# http://github.com/Raven24/webmize
+#
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#
+# example usage:
+# youtube-to-ogg https://www.youtube.com/[video]
+
+use strict;
+use FindBin;
+use lib $FindBin::Bin;
+
+use common
+
+load_module("Getopt::Long");
+load_module("File::Which");
+load_module("Data::Dumper");
+
+my $ffmpeg		= which('ffmpeg');
+my $oggenc		= which('oggenc');
+my $ogginfo	    = which('ogginfo');
+my $lame		= which('lame');
+my $youtubeDl	= which('youtube-dl');
+
+my $youtubeLink	= $ARGV[0];
+my $flvTmp		= "tmp.flv";
+my $wavTmp		= "tmp.wav";
+my $filename_ogg, my $filename_mp3;
+
+if(!($youtubeLink =~ /youtube\.com/ )) {
+	#trying to convert an existing file
+	$flvTmp = $youtubeLink;
+	log_info("converting an existing file: $flvTmp");
+} else {
+	#download file
+	log_info("downloading from youtube: $youtubeLink");
+	system("$youtubeDl $youtubeLink -o $flvTmp");
+	# removed -b flag since it's default behaviour now --2010-08-20
+}
+
+#convert to wav
+system("$ffmpeg -i \"$flvTmp\" -acodec pcm_s16le -ac 2 $wavTmp");
+
+#ask for metadata
+print "\n## Enter file metadata:\n";
+print "  title: ";
+my $title = trim(<STDIN>);
+print " artist: ";
+my $artist = trim(<STDIN>);
+print "  album: ";
+my $album = trim(<STDIN>);
+print "   year: ";
+my $year = trim(<STDIN>);
+print "  genre: ";
+my $genre = trim(<STDIN>);
+print " track#: ";
+my $track = trim(<STDIN>);
+
+# start encoding
+produce_ogg();
+produce_mp3();
+
+# cleanup
+remove_tmp();
+
+
+sub produce_ogg
+{
+  $filename_ogg = "$artist - $title.ogg";
+  my $paramAlb, my $paramYear, my $paramTrack;
+  if($album ne "") { $paramAlb   = " -l \"$album\""; }
+  if($year ne "")  { $paramYear  = " -d $year";  }
+  if($track ne "") { $paramTrack = " -N $track"; }
+
+  system("$oggenc $wavTmp -q 6.5 -o \"$filename_ogg\" -a \"$artist\" -t \"$title\"$paramYear -G \"$genre\"$paramAlb$paramTrack");
+  system("$ogginfo \"$filename_ogg\"");
+}
+
+sub produce_mp3
+{
+  $filename_mp3 = "$artist - $title.mp3";
+  my $paramAlb, my $paramYear, my $paramTrack;
+  if($album ne "") { $paramAlb   = " --tl \"$album\""; }
+  if($year ne "")  { $paramYear  = " --ty $year";  }
+  if($track ne "") { $paramTrack = " --tn $track"; }
+
+  system("$lame -V2 --tt \"$title\" --ta \"$artist\" --tg \"$genre\"$paramAlb$paramYear$paramTrack $wavTmp \"$filename_mp3\"");
+}
+
+sub remove_tmp
+{
+	if (-e "$filename_ogg" && -e "$filename_mp3") {
+		unlink("tmp.flv");
+		unlink($wavTmp);
+	}
+}
