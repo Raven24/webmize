@@ -32,15 +32,17 @@ load_module("Getopt::Long");
 load_module("File::Which");
 load_module("Data::Dumper");
 
-my $ffmpeg		= which('ffmpeg');
-my $oggenc		= which('oggenc');
-my $ogginfo	    = which('ogginfo');
-my $lame		= which('lame');
-my $youtubeDl	= which('youtube-dl');
+my $ffmpeg    = which('ffmpeg');
+my $oggenc    = which('oggenc');
+my $ogginfo   = which('ogginfo');
+my $lame      = which('lame');
+my $youtubeDl = which('youtube-dl');
+my $python    = which('python2');
+   $python    = which('python') unless defined $python;
 
 my $youtubeLink	= $ARGV[0];
-my $flvTmp		= "tmp.flv";
-my $wavTmp		= "tmp.wav";
+my $flvTmp      = "tmp.flv";
+my $wavTmp      = "tmp.wav";
 my $filename_ogg, my $filename_mp3;
 
 if(!($youtubeLink =~ /youtube\.com/ )) {
@@ -50,7 +52,7 @@ if(!($youtubeLink =~ /youtube\.com/ )) {
 } else {
 	#download file
 	log_info("downloading from youtube: $youtubeLink");
-	system("$youtubeDl $youtubeLink -o $flvTmp");
+	system("$python $youtubeDl $youtubeLink -o $flvTmp");
 	# removed -b flag since it's default behaviour now --2010-08-20
 }
 
